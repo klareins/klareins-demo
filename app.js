@@ -237,7 +237,7 @@
   }
   function shell() {
     $("#app").innerHTML =
-      `<div class="mobile-overlay ${menuOpen ? "open" : ""}" data-action="close-menu"></div><aside class="sidebar ${menuOpen ? "open" : ""}" aria-label="Hauptnavigation"><a class="brand" href="#/properties" aria-label="Klar:eins Startseite"><span class="brand-mark">k</span><span>klar:eins</span></a><div class="workspace-label">Verwaltung</div><nav class="nav">${Object.entries(
+      `<div class="mobile-overlay ${menuOpen ? "open" : ""}" data-action="close-menu"></div><aside class="sidebar ${menuOpen ? "open" : ""}" aria-label="Hauptnavigation"><a class="brand" href="#/properties" aria-label="klar:eins Startseite"><span class="brand-mark">k</span><span>klar:eins</span></a><div class="workspace-label">Verwaltung</div><nav class="nav">${Object.entries(
         cfg,
       )
         .map(
@@ -246,7 +246,7 @@
         )
         .join(
           "",
-        )}</nav><div class="side-bottom"><div class="demo-box"><strong><span class="pulse"></span>Ein Raum zum Ausprobieren</strong><p>Fiktive Daten. Ihre Änderungen bleiben lokal in diesem Browser.</p></div><button class="side-action" data-action="reset">${icon("reset")}<span>Beispieldaten zurücksetzen</span></button><div class="side-sign">Klar:eins · Design-Demo · v0.1</div></div></aside><div class="content"><header class="topbar"><button class="mobile-menu" aria-label="Navigation öffnen" aria-expanded="${menuOpen}" data-action="menu">${icon("menu")}</button><div class="crumb"><span class="home-crumb">Arbeitsbereich</span><span class="crumb-divider">/</span><strong>${cfg[active].label}</strong></div><div class="top-right"><form class="global-search" role="search" id="search-form">${icon("search")}<input id="global-search" type="search" aria-label="Alle Bereiche durchsuchen" placeholder="Alles durchsuchen …" value="${esc(query)}" autocomplete="off"><span class="search-shortcut">↵</span></form><div class="top-divider"></div><span class="demo-pill">DEMO</span></div></header><main id="main" class="main" tabindex="-1"></main></div>`;
+        )}</nav><div class="side-bottom"><div class="demo-box"><strong><span class="pulse"></span>Ein Raum zum Ausprobieren</strong><p>Fiktive Daten. Ihre Änderungen bleiben lokal in diesem Browser.</p></div><button class="side-action" data-action="reset">${icon("reset")}<span>Beispieldaten zurücksetzen</span></button><div class="side-sign">klar:eins · Design-Demo · v0.1</div></div></aside><div class="content"><header class="topbar"><button class="mobile-menu" aria-label="Navigation öffnen" aria-expanded="${menuOpen}" data-action="menu">${icon("menu")}</button><div class="crumb"><span class="home-crumb">Arbeitsbereich</span><span class="crumb-divider">/</span><strong>${cfg[active].label}</strong></div><div class="top-right"><form class="global-search" role="search" id="search-form">${icon("search")}<input id="global-search" type="search" aria-label="Alle Bereiche durchsuchen" placeholder="Alles durchsuchen …" value="${esc(query)}" autocomplete="off"><span class="search-shortcut">↵</span></form><div class="top-divider"></div><span class="demo-pill">DEMO</span></div></header><main id="main" class="main" tabindex="-1"></main></div>`;
   }
   function stats() {
     const rented = db.units.filter((u) => u.status === "Vermietet").length,
@@ -638,7 +638,7 @@
         db.contacts.filter((c) => c.id === r.contactId),
       );
     }
-    document.title = `${recordName(active, r)} · Klar:eins Demo`;
+    document.title = `${recordName(active, r)} · klar:eins Demo`;
     $("#main").className = "main detail";
     $("#main").innerHTML =
       `${storageWarning ? `<div class="storage-alert" role="alert">${esc(storageWarning)}</div>` : ""}<a class="back" href="#/${active}">${icon("back")}Zurück zu ${c.label}</a><div class="heading"><div><div class="eyebrow">${c.singular} · Stammdaten</div><div class="title-line"><h1>${esc(recordName(active, r))}</h1></div><p class="subtitle">${esc(recordSub(active, r))}</p></div><button class="button primary" data-action="edit" data-id="${esc(id)}">${icon("edit")}Bearbeiten</button></div><div class="detail-layout"><div><section class="panel"><div class="panel-head"><h2>Auf einen Blick</h2>${r.status ? badge(r.status) : "<small>Fiktiver Beispieldatensatz</small>"}</div><dl class="detail-facts">${detailFacts(active, r)}</dl>${!["properties", "buildings"].includes(active) ? `<div class="detail-note"><h3>Notiz</h3><p>${esc(r.note || "Noch keine Notiz hinterlegt.")}</p></div>` : `<div class="detail-note"><p>${active === "properties" ? "Eine Immobilie umfasst ein oder mehrere Gebäude. Das Baujahr wird am Gebäude gepflegt." : "Die Gebäudeadresse kann von der Immobilie übernommen oder separat hinterlegt werden."}</p></div>`}</section>${related}</div><aside class="detail-side"><div class="detail-art">${art(r.accent || "sage")}</div><div class="detail-side-box"><h3>Raum für gute Verwaltung.</h3><p>${active === "contacts" ? "Dieser Kontakt ist ein fachlicher Datensatz. Er besitzt kein Login und keine Zugriffsrechte." : active === "contracts" ? "Diese Angaben sind fiktive Vertragsstammdaten. Es wird kein Vertrag erstellt, versendet oder unterzeichnet." : "Probieren Sie die Stammdatenpflege aus. Änderungen werden ausschließlich in diesem Browser gespeichert."}</p></div><div class="aside-note">${icon("info")}<p>Zuordnungen dienen der Orientierung. Status und Beträge werden unabhängig gepflegt.</p></div></aside></div>${bottomNote()}`;
@@ -682,7 +682,7 @@
     const search = new URLSearchParams(location.hash.split("?")[1] || "");
     query = parts[0] === "search" ? search.get("q") || "" : "";
     shell();
-    document.title = `${cfg[active].label} · Klar:eins Demo`;
+    document.title = `${cfg[active].label} · klar:eins Demo`;
     if (parts[0] === "search") renderSearch();
     else if (parts[1]) renderDetail(decodeURIComponent(parts[1]));
     else renderList();

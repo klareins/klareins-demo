@@ -1,4 +1,4 @@
-# Klar:eins · Design-Demo
+# klar:eins · Design-Demo
 
 Eine klickbare Arbeitsoberfläche für Immobilienverwaltung. Dieses erste **Walking Skeleton** macht das gemeinsame Basislayout, die Navigation und einfache Arbeitsabläufe in fünf Bereichen besprechbar. Es ist eine statische Design-Demo mit vollständig erfundenen Beispieldaten.
 
