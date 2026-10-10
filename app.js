@@ -124,6 +124,17 @@
       columns: ["Vertrag", "Kontakt", "Miete / Monat", "Status"],
     },
   };
+  const extraModules = {
+    cases: ['Vorgänge','Vorgang','Schäden, Übergaben und Anliegen gemeinsam bearbeiten.'],
+    invoices: ['Rechnungen','Rechnung','Fiktive Belege im fachlichen Zusammenhang.'],
+    documents: ['Dokumente','Dokument','Protokolle und Unterlagen an einem Ort.'],
+    tasks: ['Aufgaben','Aufgabe','Die nächsten Schritte im Blick.'],
+    users: ['Test-Nutzer','Test-Nutzer','Simulierte Profile ohne Anmeldung oder Zugriffsrechte.']
+  };
+  for (const [k,[label,singular,description]] of Object.entries(extraModules)) {
+    cfg[k] = {label,singular,description,tabs:['Alle'],filters:['Alle Arten',...new Set(window.KLAREINS_SEED[k].map(r=>r.type))],columns:[singular,'Kontext','Art','Status']};
+    paths[k] = paths[{cases:'list',invoices:'money',documents:'contracts',tasks:'check',users:'contacts'}[k]];
+  }
   let db,
     storageWarning = "",
     active = "properties",
@@ -163,6 +174,10 @@
     const saved = localStorage.getItem(KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
+      // Add this demo extension without overwriting existing v2 records or edits.
+      for (const k of Object.keys(extraModules)) if (!Array.isArray(parsed[k])) parsed[k] = clone(window.KLAREINS_SEED[k]);
+      for (const r of window.KLAREINS_SEED.contacts.filter(r=>r.id.startsWith('cm'))) if (!parsed.contacts?.some(c=>c.id===r.id)) parsed.contacts?.push(clone(r));
+      if (!Array.isArray(parsed.links)) parsed.links = clone(window.KLAREINS_SEED.links);
       if (!validData(parsed)) throw Error("invalid");
       db = parsed;
     } else db = clone(window.KLAREINS_SEED);
@@ -227,12 +242,13 @@
         : `<span class="thumb">${icon(kind)}</span>`;
   }
   function recordSub(kind, r) {
+    if (extraModules[kind]) return [r.id, r.type, r.status].filter(Boolean).join(' · ');
     return ["properties", "buildings"].includes(kind)
       ? `${addressOf(kind, r).postalCode} ${cleanCity(addressOf(kind, r).city)} · ID ${r.id}`
       : kind === "units"
         ? `${r.type} · ${Number(r.floor) === 0 ? "EG" : r.floor + ". Etage"} · ${r.position}`
         : kind === "contacts"
-          ? r.type
+          ? [r.type, r.context, r.email].filter(Boolean).join(" · ")
           : `${date(r.start)} · ${r.type}`;
   }
   function shell() {
@@ -373,6 +389,7 @@
         ],
       ],
     };
+    if (extraModules[active]) return '';
     return `<section class="stats" aria-label="Bestandskennzahlen">${values[active].map(([title, val, ico, note]) => `<div class="stat"><div class="stat-label">${title}${icon(ico)}</div><div class="stat-value">${val}</div><div class="stat-note ${ico === "leaf" || ico === "check" ? "good" : ""}">${note}</div></div>`).join("")}</section>`;
   }
   function row(kind, r) {
@@ -402,6 +419,7 @@
       third = euro(r.rent);
       fourth = badge(r.status);
     }
+    if (extraModules[kind]) { second = r.context || 'Fiktiver Eintrag'; third = r.type || '—'; fourth = badge(r.status || 'Demo'); }
     return `<a class="list-row" href="#/${kind}/${encodeURIComponent(r.id)}" aria-label="${esc(recordName(kind, r))} öffnen"><span class="cell-primary">${thumbnail(kind, r)}<span><span class="record-name">${esc(recordName(kind, r))}</span><span class="record-sub" style="display:block">${esc(recordSub(kind, r))}</span></span></span><span class="cell-muted">${esc(second)}</span><span class="cell-muted">${esc(third)}</span><span class="status-cell">${fourth}</span>${icon("arrow", "row-arrow")}</a>`;
   }
   function focusCard() {
@@ -443,7 +461,7 @@
           : c.filters.map((v, i) => [i ? v : "", v]);
     $("#main").className = "main";
     $("#main").innerHTML =
-      `${storageWarning ? `<div class="storage-alert" role="alert">${esc(storageWarning)}</div>` : ""}<div class="heading"><div><div class="eyebrow">Ihr Bestand</div><div class="title-line"><h1>${c.label}</h1><span class="count-badge">${db[active].length}</span></div><p class="subtitle">${c.description}</p></div><button class="button primary" data-action="create">${icon("plus")}${c.singular} anlegen</button></div>${stats()}<div class="${active === "properties" ? "workspace-grid" : "full-list"}"><section class="panel"><div class="panel-head"><h2>${active === "properties" ? "Alle Immobilien" : c.label + " im Überblick"}</h2><small>${active === "contacts" ? "Fachliche Kontakte · keine Benutzerkonten" : "Ein guter Überblick beginnt hier."}</small><div class="view-switch" aria-label="Ansicht"><button class="${view === "list" ? "active" : ""}" data-action="view" data-value="list" aria-label="Listenansicht" aria-pressed="${view === "list"}">${icon("list")}</button><button class="${view === "cards" ? "active" : ""}" data-action="view" data-value="cards" aria-label="Kartenansicht" aria-pressed="${view === "cards"}">${icon("grid")}</button></div></div><div class="toolbar"><div class="tabs" aria-label="Statusfilter">${c.tabs.map((t) => `<button class="tab ${tab === t ? "active" : ""}" data-action="tab" data-value="${esc(t)}" aria-pressed="${tab === t}">${esc(t)}</button>`).join("")}</div><label class="filter">${icon("filter")}<select id="filter" aria-label="${active === "buildings" ? "Nach Immobilie filtern" : active === "properties" ? "Nach Ort filtern" : "Nach Art filtern"}">${choices.map(([v, l]) => `<option value="${esc(v)}" ${filter === v ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label></div>${view === "list" ? `<div class="list-row table-head" aria-hidden="true">${c.columns.map((t) => `<span>${t}</span>`).join("")}<span></span></div>` : ""}<div class="${view === "cards" ? "cards-view" : ""}">${records.length ? records.map((r) => row(active, r)).join("") : `<div class="empty">${icon("search")}<h3>Hier ist noch Platz.</h3><p>Zu dieser Auswahl gibt es keine Einträge.</p><button class="button" data-action="clear-filter">Filter zurücksetzen</button></div>`}</div><div class="list-footer"><span>${records.length} von ${db[active].length} ${c.label}</span><span class="page-number">1</span></div></section>${active === "properties" ? focusCard() : ""}</div>${bottomNote()}`;
+      `${storageWarning ? `<div class="storage-alert" role="alert">${esc(storageWarning)}</div>` : ""}<div class="heading"><div><div class="eyebrow">Ihr Bestand</div><div class="title-line"><h1>${c.label}</h1><span class="count-badge">${db[active].length}</span></div><p class="subtitle">${c.description}</p></div><button class="button primary" data-action="create">${icon("plus")}${c.singular} anlegen</button></div>${stats()}${active === "properties" || active === "cases" ? `<a class="demo-entry" href="#/cases/vg1"><span><span class="eyebrow">Neu zum Ausprobieren</span><strong>Ein Wasserschaden. Alle Zusammenhänge.</strong><span>Gebäude, Kontakt, Rechnung und mehr verbinden.</span></span>${icon("arrow")}</a>` : ""}<div class="${active === "properties" ? "workspace-grid" : "full-list"}"><section class="panel"><div class="panel-head"><h2>${active === "properties" ? "Alle Immobilien" : c.label + " im Überblick"}</h2><small>${active === "contacts" ? "Fachliche Kontakte · keine Benutzerkonten" : "Ein guter Überblick beginnt hier."}</small><div class="view-switch" aria-label="Ansicht"><button class="${view === "list" ? "active" : ""}" data-action="view" data-value="list" aria-label="Listenansicht" aria-pressed="${view === "list"}">${icon("list")}</button><button class="${view === "cards" ? "active" : ""}" data-action="view" data-value="cards" aria-label="Kartenansicht" aria-pressed="${view === "cards"}">${icon("grid")}</button></div></div><div class="toolbar"><div class="tabs" aria-label="Statusfilter">${c.tabs.map((t) => `<button class="tab ${tab === t ? "active" : ""}" data-action="tab" data-value="${esc(t)}" aria-pressed="${tab === t}">${esc(t)}</button>`).join("")}</div><label class="filter">${icon("filter")}<select id="filter" aria-label="${active === "buildings" ? "Nach Immobilie filtern" : active === "properties" ? "Nach Ort filtern" : "Nach Art filtern"}">${choices.map(([v, l]) => `<option value="${esc(v)}" ${filter === v ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label></div>${view === "list" ? `<div class="list-row table-head" aria-hidden="true">${c.columns.map((t) => `<span>${t}</span>`).join("")}<span></span></div>` : ""}<div class="${view === "cards" ? "cards-view" : ""}">${records.length ? records.map((r) => row(active, r)).join("") : `<div class="empty">${icon("search")}<h3>Hier ist noch Platz.</h3><p>Zu dieser Auswahl gibt es keine Einträge.</p><button class="button" data-action="clear-filter">Filter zurücksetzen</button></div>`}</div><div class="list-footer"><span>${records.length} von ${db[active].length} ${c.label}</span><span class="page-number">1</span></div></section>${active === "properties" ? focusCard() : ""}</div>${bottomNote()}`;
   }
   function fieldsFor(k) {
     const text = (key, title, required = false, wide = false) => ({
@@ -532,6 +550,8 @@
         { key: "email", title: "E-Mail (fiktiv)", type: "email" },
         text("phone", "Telefon (optional, fiktiv)"),
         text("city", "Ort (fiktiv)"),
+        text("context", "Kontext zur Unterscheidung", false, true),
+        reference("propertyId", "Immobilie (fachlicher Bezug)", "properties"),
       );
     if (k === "contracts")
       f.push(
@@ -544,6 +564,8 @@
         number("rent", "Nettomiete / Monat in €"),
         number("deposit", "Kaution in €"),
       );
+    if (extraModules[k]) f.push(text('type','Art',true),text('status','Status'),text('context','Kontext',false,true),reference('propertyId','Immobilie (fachlicher Bezug)','properties'));
+    if (k === 'users') f.push({key:'email', title:'E-Mail (fiktiv)', type:'email'});
     if (!["properties", "buildings"].includes(k))
       f.push({ key: "note", title: "Notiz", type: "textarea", wide: true });
     return f;
@@ -641,8 +663,97 @@
     document.title = `${recordName(active, r)} · klar:eins Demo`;
     $("#main").className = "main detail";
     $("#main").innerHTML =
-      `${storageWarning ? `<div class="storage-alert" role="alert">${esc(storageWarning)}</div>` : ""}<a class="back" href="#/${active}">${icon("back")}Zurück zu ${c.label}</a><div class="heading"><div><div class="eyebrow">${c.singular} · Stammdaten</div><div class="title-line"><h1>${esc(recordName(active, r))}</h1></div><p class="subtitle">${esc(recordSub(active, r))}</p></div><button class="button primary" data-action="edit" data-id="${esc(id)}">${icon("edit")}Bearbeiten</button></div><div class="detail-layout"><div><section class="panel"><div class="panel-head"><h2>Auf einen Blick</h2>${r.status ? badge(r.status) : "<small>Fiktiver Beispieldatensatz</small>"}</div><dl class="detail-facts">${detailFacts(active, r)}</dl>${!["properties", "buildings"].includes(active) ? `<div class="detail-note"><h3>Notiz</h3><p>${esc(r.note || "Noch keine Notiz hinterlegt.")}</p></div>` : `<div class="detail-note"><p>${active === "properties" ? "Eine Immobilie umfasst ein oder mehrere Gebäude. Das Baujahr wird am Gebäude gepflegt." : "Die Gebäudeadresse kann von der Immobilie übernommen oder separat hinterlegt werden."}</p></div>`}</section>${related}</div><aside class="detail-side"><div class="detail-art">${art(r.accent || "sage")}</div><div class="detail-side-box"><h3>Raum für gute Verwaltung.</h3><p>${active === "contacts" ? "Dieser Kontakt ist ein fachlicher Datensatz. Er besitzt kein Login und keine Zugriffsrechte." : active === "contracts" ? "Diese Angaben sind fiktive Vertragsstammdaten. Es wird kein Vertrag erstellt, versendet oder unterzeichnet." : "Probieren Sie die Stammdatenpflege aus. Änderungen werden ausschließlich in diesem Browser gespeichert."}</p></div><div class="aside-note">${icon("info")}<p>Zuordnungen dienen der Orientierung. Status und Beträge werden unabhängig gepflegt.</p></div></aside></div>${bottomNote()}`;
+      `${storageWarning ? `<div class="storage-alert" role="alert">${esc(storageWarning)}</div>` : ""}<a class="back" href="#/${active}">${icon("back")}Zurück zu ${c.label}</a><div class="heading"><div><div class="eyebrow">${c.singular} · Stammdaten</div><div class="title-line"><h1>${esc(recordName(active, r))}</h1></div><p class="subtitle">${esc(recordSub(active, r))}</p></div><button class="button primary" data-action="edit" data-id="${esc(id)}">${icon("edit")}Bearbeiten</button></div><div class="detail-layout"><div><section class="panel"><div class="panel-head"><h2>Auf einen Blick</h2>${r.status ? badge(r.status) : "<small>Fiktiver Beispieldatensatz</small>"}</div><dl class="detail-facts">${detailFacts(active, r)}</dl>${!["properties", "buildings"].includes(active) ? `<div class="detail-note"><h3>Notiz</h3><p>${esc(r.note || "Noch keine Notiz hinterlegt.")}</p></div>` : `<div class="detail-note"><p>${active === "properties" ? "Eine Immobilie umfasst ein oder mehrere Gebäude. Das Baujahr wird am Gebäude gepflegt." : "Die Gebäudeadresse kann von der Immobilie übernommen oder separat hinterlegt werden."}</p></div>`}</section>${linkSection(active,id)}${related ? `<div class="assignment-label"><h2>Feste fachliche Zuordnungen</h2><p>Diese Beziehungen werden über die Stammdaten gepflegt. Freie Verknüpfungen ändern sie nicht.</p></div>${related}` : ""}</div><aside class="detail-side"><div class="detail-art">${art(r.accent || "sage")}</div><div class="detail-side-box"><h3>Raum für gute Verwaltung.</h3><p>${active === "contacts" ? "Dieser Kontakt ist ein fachlicher Datensatz. Er besitzt kein Login und keine Zugriffsrechte." : active === "contracts" ? "Diese Angaben sind fiktive Vertragsstammdaten. Es wird kein Vertrag erstellt, versendet oder unterzeichnet." : "Probieren Sie die Stammdatenpflege aus. Änderungen werden ausschließlich in diesem Browser gespeichert."}</p></div><div class="aside-note">${icon("info")}<p>Zuordnungen dienen der Orientierung. Status und Beträge werden unabhängig gepflegt.</p></div></aside></div>${bottomNote()}`;
   }
+  const LM = window.KLAREINS_LINKS;
+  const ref = (kind, id) => LM.key(kind, id);
+  function resolveRef(value) {
+    const split = value.indexOf(':');
+    const kind = value.slice(0, split), id = value.slice(split + 1);
+    const record = db[kind]?.find(r => r.id === id);
+    return record ? { kind, record, key: value } : null;
+  }
+  function propertyFor(kind, r) {
+    if (kind === 'properties') return r.id;
+    if (kind === 'units') return find('buildings', r.buildingId)?.propertyId || '';
+    if (kind === 'contracts') { const unit = find('units', r.unitId); return unit ? propertyFor('units', unit) : ''; }
+    return r.propertyId || '';
+  }
+  function contextFor(kind, r) {
+    const property = propertyFor(kind, r);
+    const location = property ? label('properties', property) : '';
+    return [...new Set([r.context, r.email, r.city, location && !r.context?.includes(location) ? location : '', kind === 'units' ? label('buildings', r.buildingId) : ''].filter(Boolean))].join(' · ');
+  }
+  function linkSection(kind, id) {
+    const source = ref(kind, id);
+    const links = db.links.filter(l => l.a === source || l.b === source);
+    const rows = links.map(l => {
+      const target = resolveRef(l.a === source ? l.b : l.a);
+      if (!target) return '';
+      const { kind: k, record: r, key } = target;
+      return `<li class="connection-row"><a class="connection-open" href="#/${k}/${encodeURIComponent(r.id)}">${thumbnail(k,r)}<span><span class="connection-type">${cfg[k].singular}</span><strong>${esc(recordName(k,r))}</strong><span class="connection-context">${esc(contextFor(k,r) || recordSub(k,r))}</span>${l.description ? `<span class="connection-description">${esc(l.description)}</span>` : ''}</span>${icon('arrow')}</a><button class="icon-button" data-action="unlink" data-source="${esc(source)}" data-target="${esc(key)}" aria-label="Verknüpfung mit ${esc(recordName(k,r))} entfernen" title="Nur Verbindung entfernen">${icon('close')}</button></li>`;
+    }).join('');
+    return `<section class="panel connections" aria-labelledby="connections-title"><div class="panel-head"><div><h2 id="connections-title">Verknüpfungen <span class="count-badge">${links.length}</span></h2><p>Passende Informationen aus allen Bereichen.</p></div><button class="button" data-action="link-add" data-source="${esc(source)}">${icon('plus')}Hinzufügen</button></div>${rows ? `<ul class="connection-list">${rows}</ul>` : '<div class="connection-empty">Noch keine Verknüpfungen. Ergänzen Sie Kontakte, Dokumente oder beliebige andere Einträge.</div>'}<div class="connection-help">In beide Richtungen sichtbar. Entfernen löst nur die Verbindung – die Datensätze bleiben erhalten.</div></section>`;
+  }
+  let picker = null;
+  function openLinkPicker(source) {
+    picker = { source, selected: new Set(), query: '', kind: '', property: '', role: '', description: '' };
+    const origin = resolveRef(source);
+    openDialog(`<div class="dialog-head"><div><div class="eyebrow">Bereiche verbinden</div><h2 id="dialog-title">Verknüpfungen hinzufügen</h2><p>Zu ${esc(recordName(origin.kind,origin.record))}</p></div><button class="icon-button" data-action="close-dialog" aria-label="Schließen">${icon('close')}</button></div><div class="link-picker"><label class="field"><span>Modulübergreifend suchen</span><input id="link-query" type="search" placeholder="Zum Beispiel Müller, Leckortung oder Lindenbogen" autocomplete="off" aria-describedby="search-hint"></label><p id="search-hint" class="picker-hint">Namen, E-Mail, Objekt oder Nummer kombinieren. „Mueller“ findet auch „Müller“.</p><div class="picker-filters"><label class="field">Typ / Modul<select id="link-kind"><option value="">Alle Bereiche</option>${Object.entries(cfg).map(([k,c])=>`<option value="${k}">${c.label}</option>`).join('')}</select></label><label class="field">Immobilie<select id="link-property"><option value="">Alle Immobilien</option>${db.properties.map(r=>`<option value="${r.id}">${esc(recordName('properties',r))} · ${esc(cleanCity(r.address.city))}</option>`).join('')}</select></label><label class="field">Rolle / Art<select id="link-role"><option value="">Alle Rollen und Arten</option>${[...new Set(Object.keys(cfg).flatMap(k=>db[k].map(r=>r.type)).filter(Boolean))].sort().map(t=>`<option>${esc(t)}</option>`).join('')}</select></label></div><div class="picker-result-head"><p id="link-count" role="status" aria-live="polite"></p><button class="text-button" data-action="link-clear">Filter zurücksetzen</button></div><div id="link-results" class="picker-results"></div><div id="link-selection" class="selection-summary" aria-live="polite"></div><label class="field relationship-field">Beziehungsbeschreibung <span class="picker-hint">Optional · gilt für die aktuelle Auswahl</span><input id="link-description" maxlength="160" placeholder="Zum Beispiel: Abstimmung zur Reparatur"></label></div><div class="dialog-foot"><div class="actions"><button class="button" data-action="close-dialog">Abbrechen</button><button class="button primary" id="link-save" data-action="link-save" disabled>Verknüpfen</button></div></div>`);
+    $('#editor').classList.add('link-dialog');
+    renderLinkResults();
+    $('#link-query').focus();
+  }
+  function searchRecords(q, kind = '', property = '', role = '', source = '') {
+    const origin = resolveRef(source);
+    const originProperty = origin ? propertyFor(origin.kind, origin.record) : '';
+    return Object.keys(cfg).filter(k=>!kind || k===kind).flatMap(k=>db[k].map(r=>({kind:k,record:r,key:ref(k,r.id)})))
+      .filter(x=>x.key!==source && (!property || propertyFor(x.kind,x.record)===property) && (!role || x.record.type===role))
+      .map(x=>({...x, score:LM.score([recordName(x.kind,x.record), cfg[x.kind].label, cfg[x.kind].singular, x.record.id, x.record.type, x.record.status, contextFor(x.kind,x.record), recordSub(x.kind,x.record)].join(' '), recordName(x.kind,x.record),q), sameProperty:!!originProperty && propertyFor(x.kind,x.record)===originProperty}))
+      .filter(x=>x.score>=0).sort((a,b)=>b.score-a.score || Number(b.sameProperty)-Number(a.sameProperty) || recordName(a.kind,a.record).localeCompare(recordName(b.kind,b.record),'de') || a.key.localeCompare(b.key));
+  }
+  function renderLinkResults() {
+    const results = searchRecords(picker.query,picker.kind,picker.property,picker.role,picker.source);
+    $('#link-count').textContent = `${results.length} Treffer · Name zuerst, dann Objektbezug`;
+    $('#link-results').innerHTML = results.map(({kind:k,record:r,key,sameProperty})=> {
+      const exists = LM.has(db.links,picker.source,key);
+      return `<label class="picker-result ${exists ? 'already-linked' : ''}"><input type="checkbox" data-link-key="${esc(key)}" ${exists ? 'disabled checked' : picker.selected.has(key) ? 'checked' : ''}><span class="result-body"><span class="result-top"><span class="connection-type">${cfg[k].singular} · ${esc(r.id)}</span><span class="result-state">${exists ? 'Bereits verknüpft' : sameProperty ? 'Gleiche Immobilie' : esc(r.status || '')}</span></span><strong>${esc(recordName(k,r))}</strong><span class="result-role">${esc(r.type || recordSub(k,r))}</span><span class="connection-context">${esc(contextFor(k,r) || recordSub(k,r))}</span></span></label>`;
+    }).join('') || '<div class="connection-empty"><strong>Keine passenden Treffer</strong><p>Weniger Suchbegriffe verwenden oder einen Filter zurücksetzen.</p></div>';
+    updateLinkSelection();
+  }
+  function updateLinkSelection() {
+    $('#link-save').disabled = !picker.selected.size;
+    $('#link-save').textContent = picker.selected.size ? `${picker.selected.size} verknüpfen` : 'Verknüpfen';
+    $('#link-selection').innerHTML = picker.selected.size ? `<strong>${picker.selected.size} ausgewählt</strong> <span>Auswahl bleibt beim Filtern erhalten.</span><div class="selection-chips">${[...picker.selected].map(key=>{ const x=resolveRef(key); return `<button class="selection-chip" data-action="link-deselect" data-key="${esc(key)}">${esc(recordName(x.kind,x.record))} · ${esc(x.record.id)} <span aria-hidden="true">×</span><span class="sr-only"> Auswahl entfernen</span></button>`; }).join('')}</div>` : '<span>Mehrere Einträge auswählen und gemeinsam verknüpfen.</span>';
+  }
+  document.addEventListener('input', e=> {
+    if(e.target.id==='link-query') { picker.query=e.target.value; renderLinkResults(); }
+    if(e.target.id==='link-description') picker.description=e.target.value;
+  });
+  document.addEventListener('change', e=> {
+    const fields = {'link-kind':'kind','link-property':'property','link-role':'role'};
+    if(fields[e.target.id]) {picker[fields[e.target.id]]=e.target.value; renderLinkResults();}
+    if(e.target.dataset.linkKey) {const key=e.target.dataset.linkKey; e.target.checked ? picker.selected.add(key) : picker.selected.delete(key); updateLinkSelection();}
+  });
+  document.addEventListener('click', e=> {
+    const b=e.target.closest('[data-action]'); if(!b) return;
+    const action=b.dataset.action;
+    if(action==='link-add') openLinkPicker(b.dataset.source);
+    if(action==='link-deselect') {picker.selected.delete(b.dataset.key); renderLinkResults();}
+    if(action==='link-clear') {for(const [id,key] of Object.entries({'link-query':'query','link-kind':'kind','link-property':'property','link-role':'role'})) {picker[key]='';$('#'+id).value='';} renderLinkResults();}
+    if(action==='link-save' && picker?.selected.size) {
+      let count=0;
+      for(const target of picker.selected) if(resolveRef(target) && LM.add(db.links,picker.source,target,picker.description)) count++;
+      const saved=persist(); closeDialog(); route(); $('[data-action="link-add"]')?.focus(); toast(`${count} Verknüpfungen hinzugefügt. ${saved ? 'Lokal gespeichert.' : 'Nur für diese Sitzung.'}`);
+    }
+    if(action==='unlink') {
+      const origin=b.dataset.source, target=b.dataset.target;
+      const x=resolveRef(target);
+      openDialog(`<div class="dialog-head"><h2 id="dialog-title">Verknüpfung entfernen?</h2><button class="icon-button" data-action="close-dialog" aria-label="Schließen">${icon('close')}</button></div><div class="confirm-body">Die Verbindung mit <strong>${esc(recordName(x.kind,x.record))}</strong> wird auf beiden Seiten entfernt. Beide Datensätze und feste fachliche Zuordnungen bleiben erhalten.</div><div class="dialog-foot"><div class="actions"><button class="button" data-action="close-dialog">Abbrechen</button><button class="button primary" data-action="unlink-confirm" data-source="${esc(origin)}" data-target="${esc(target)}">Nur Verbindung entfernen</button></div></div>`);
+    }
+    if(action==='unlink-confirm') {db.links=LM.remove(db.links,b.dataset.source,b.dataset.target); const saved=persist();closeDialog();route();$('[data-action="link-add"]')?.focus();toast(`Verbindung auf beiden Seiten entfernt. ${saved ? 'Lokal gespeichert.' : 'Nur für diese Sitzung.'}`);}
+  });
+
   function searchText(k, r) {
     return [
       JSON.stringify(r),
@@ -658,7 +769,7 @@
     let total = 0;
     const groups = Object.entries(cfg)
       .map(([k, c]) => {
-        const results = db[k].filter((r) => searchText(k, r).includes(q));
+        const results = searchRecords(q,k).map(x=>x.record);
         total += results.length;
         return results.length
           ? `<section><div class="search-results-title">${c.label} · ${results.length}</div>${results.map((r) => `<a class="search-hit" href="#/${k}/${encodeURIComponent(r.id)}">${thumbnail(k, r)}<span><span class="record-name">${esc(recordName(k, r))}</span><span class="record-sub" style="display:block">${esc(recordSub(k, r))}</span></span>${icon("arrow", "row-arrow")}</a>`).join("")}</section>`
@@ -699,11 +810,13 @@
   function openDialog(html) {
     returnFocus = document.activeElement;
     const d = $("#editor");
+    d.classList.remove("link-dialog");
     d.innerHTML = html;
     d.showModal();
   }
   function closeDialog() {
     $("#editor").close();
+    $("#editor").classList.remove("link-dialog");
     if (returnFocus?.isConnected) returnFocus.focus();
   }
   const addressFields = [
@@ -917,6 +1030,7 @@
       location.hash = `#/${active}`;
   });
   document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && $("#editor").open) { e.preventDefault(); closeDialog(); return; }
     if (e.key === "Escape" && menuOpen) {
       menuOpen = false;
       $(".sidebar").classList.remove("open");

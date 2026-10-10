@@ -1,3 +1,4 @@
+> **Erweiterung: Verknüpfungen.** Dieser Arbeitsstand ergänzt die fünf Basismodule um Vorgänge, Rechnungen, Dokumente, Aufgaben und simulierte Test-Nutzer. Details und Prüfschritte: [LOCAL-REVIEW.md](LOCAL-REVIEW.md). Die öffentliche Veröffentlichung dieser ausschließlich fiktiven Demo wurde am 10.10.2026 freigegeben.
 # klar:eins · Design-Demo
 
 Eine klickbare Arbeitsoberfläche für Immobilienverwaltung. Dieses erste **Walking Skeleton** macht das gemeinsame Basislayout, die Navigation und einfache Arbeitsabläufe in fünf Bereichen besprechbar. Es ist eine statische Design-Demo mit vollständig erfundenen Beispieldaten.
